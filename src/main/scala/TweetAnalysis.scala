@@ -30,9 +30,16 @@ object TweetAnalysis {
      val negCount = totalCount.filter(x => x.posCount < x.negCount).count
      val neutralCount = totalCount.filter(x => x.posCount == x.negCount).count
      
+     val mostPositive = totalCount.sortBy(x => x.posCount * -1).take(10)
+     val mostNegative = totalCount.sortBy(x => x.negCount * -1).take(10)
      
      println("Total Tweets: " + cleanText.count)  
      println("Positive: " + posCount + " Negative: " + negCount + " Neutral: " + neutralCount)
+     println("Top Positive Tweets")
+     mostPositive.foreach(x => println(x.tweet))
+     
+     println("Top Negative Tweets")
+     mostNegative.foreach(x => println(x.tweet))
   }
   
   def getWordSubset(x: String) : Array[String] = {
