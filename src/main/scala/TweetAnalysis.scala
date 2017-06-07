@@ -45,8 +45,18 @@ object TweetAnalysis {
      val countWord = wordCount.map({case (k, v) => (v, k)}).filter({case (k, v) => v.size > 3})
      val sortedCount = countWord.sortByKey(false).take(25).map({case (k, v) => (v, k)})
      
-     println("--------- TOP 25 MOST FRQUENTLY USED WORDS -----------")
+     println("--------- TOP 25 MOST FREQUENTLY USED WORDS -----------")
      sortedCount.foreach({case (k, v) => println("Word: " + k + " Count: " + v.toString())})
+     println()
+     
+     
+     val filterMentionTweets = wordCount.map({case (k, v) => (v, k)}).filter({case (k, v) => v.contains("@")})
+     val sortedMentionTweets = filterMentionTweets.sortByKey(false).take(25).map({case (k, v) => (v, k)})
+     
+     println("--------- TOP 10 USERS TRUMP TWEETS -----------")
+     
+     sortedMentionTweets.foreach({case (k, v) => println("User: " + k + " Count: " + v.toString())})
+     println()
      
      val mostPositive = totalCount.sortBy(x => x.posCount * -1).take(10)
      val mostNegative = totalCount.sortBy(x => x.negCount * -1).take(10)
