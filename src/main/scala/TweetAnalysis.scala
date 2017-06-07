@@ -2,12 +2,17 @@ import scala.io._
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd._
 import scala.collection._
+import org.apache.log4j.Logger
+import org.apache.log4j.Level
 
 object TweetAnalysis {
+  Logger.getLogger("org").setLevel(Level.OFF)
+  Logger.getLogger("akka").setLevel(Level.OFF)
+  Logger.getLogger("log4j").setLevel(Level.OFF)
   def main(args: Array[String]) = {
      //System.setProperty("hadoop.home.dir", "c:/winutils")
      
-     val conf = new SparkConf().setAppName("TrumpTweets").setMaster("local[4]")
+     val conf = new SparkConf().setAppName("TrumpTweets").setMaster("local")
      val sc = new SparkContext(conf) 
      
      val positiveLines = sc.textFile("src/main/scala/positiveWordsPhrases.txt")
@@ -29,10 +34,16 @@ object TweetAnalysis {
      val posCount = totalCount.filter(x => x.posCount > x.negCount).count
      val negCount = totalCount.filter(x => x.posCount < x.negCount).count
      val neutralCount = totalCount.filter(x => x.posCount == x.negCount).count
-     
-     
+      
      println("Total Tweets: " + cleanText.count)  
      println("Positive: " + posCount + " Negative: " + negCount + " Neutral: " + neutralCount)
+          
+     //Get top 20 most frequently used words
+     val wordCount = cleanText.flatMap(l => l._1.split(" ")).map(word => (word, 1)).reduceByKey(_ + _)
+     val countWord = wordCount.map({case (k, v) => (v, k)})
+     val sortedCount = countWord.sortByKey(false).take(50).map({case (k, v) => (v, k)})
+     println("--------- Top 10 Most Frequently Used Words -----------")
+     sortedCount.foreach({case (k, v) => println("Word: " + k + " Count: " + v.toString())})
   }
   
   def getWordSubset(x: String) : Array[String] = {
