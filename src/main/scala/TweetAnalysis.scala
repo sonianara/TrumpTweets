@@ -42,21 +42,25 @@ object TweetAnalysis {
           
      //Get top 20 most frequently used words
      val wordCount = cleanText.flatMap(l => l._1.split(" ")).map(word => (word, 1)).reduceByKey(_ + _)
-     val countWord = wordCount.map({case (k, v) => (v, k)})
-     val sortedCount = countWord.sortByKey(false).take(50).map({case (k, v) => (v, k)})
-     println("--------- Top 10 Most Frequently Used Words -----------")
+     val countWord = wordCount.map({case (k, v) => (v, k)}).filter({case (k, v) => v.size > 3})
+     val sortedCount = countWord.sortByKey(false).take(25).map({case (k, v) => (v, k)})
+     
+     println("--------- TOP 25 MOST FRQUENTLY USED WORDS -----------")
      sortedCount.foreach({case (k, v) => println("Word: " + k + " Count: " + v.toString())})
      
      val mostPositive = totalCount.sortBy(x => x.posCount * -1).take(10)
      val mostNegative = totalCount.sortBy(x => x.negCount * -1).take(10)
      
+     println()
      println("Total Tweets: " + cleanText.count)  
      println("Positive: " + posCount + " Negative: " + negCount + " Neutral: " + neutralCount)
+     println()
      println("Top Positive Tweets")
      mostPositive.foreach(x => println(x.tweet))
      
      println("Top Negative Tweets")
      mostNegative.foreach(x => println(x.tweet))
+     println()
      
      //begin vocabulary 
      println("\n\n---------- VOCABULARY ANALYSIS ----------")
