@@ -117,6 +117,9 @@ object TweetAnalysis {
      println("--- Top 10 Most Retweets (Negative) ---")
      totalCount.filter(tweet => tweet.negCount > tweet.posCount).sortBy(_.retweets,false).take(10).foreach(tweet => println(tweet.retweets + " retweets: " + tweet.tweet + "\n"))
      
+     println("--- Top 10 Most Favorited and Retweeted Tweets ---")
+     tweetData.sortBy(tweet => tweet.retweets + tweet.favs, false).take(10).foreach(tweet => println(tweet.retweets + " retweets & " + tweet.favs + " favorites: " + tweet.text + "\n"))
+     
   }
   
   def getWordSubset(x: String) : Array[String] = {
