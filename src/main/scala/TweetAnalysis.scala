@@ -65,11 +65,11 @@ object TweetAnalysis {
      println("Total Tweets: " + cleanText.count)  
      println("Positive: " + posCount + " Negative: " + negCount + " Neutral: " + neutralCount)
      println()
-     println("Top Positive Tweets")
-     mostPositive.foreach(x => println(x.tweet))
+     println("\nTop Positive Tweets")
+     mostPositive.foreach(x => println("--> " + x.tweet + "\n"))
      
-     println("Top Negative Tweets")
-     mostNegative.foreach(x => println(x.tweet))
+     println("\n\nTop Negative Tweets")
+     mostNegative.foreach(x => println("--> " + x.tweet + "\n"))
      println()
      
      //begin vocabulary 
