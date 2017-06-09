@@ -27,13 +27,13 @@ object TweetAnalysis {
      val tweetsText = trumpTweets.map(line => line.split(",").map(_.trim))
      val header = tweetsText.first
      val tweetData = tweetsText.filter(_(0) != header(0)).map(x => Tweet(x(2).trim, x(3).trim, x(4).trim.toInt, x(6).trim.toInt, x(7)))
-     val cleanText = tweetData.map(x => (x.text, x.text.replaceAll("[^a-zA-Z ]", "")))
+     val cleanText = tweetData.map(x => ((x.text, x.retweets), x.text.replaceAll("[^a-zA-Z ]", "")))
      val flatMapTweets = cleanText.map(x => (x._1,getWordSubset(x._2))).flatMap{case(x,y) => y.map(str => (x,str))}
      
      val posCountMap = flatMapTweets.filter{case(x,y) => positiveWords.contains(y.trim)}.map{case(x,y) => (x,(1,0))}
      val negCountMap = flatMapTweets.filter{case(x,y) => negativeWords.contains(y.trim)}.map{case(x,y) => (x,(0,1))}
-     case class TweetSide(tweet: String, posCount: Int, negCount: Int)
-     val totalCount = posCountMap.union(negCountMap).reduceByKey((x,y) => (x._1+y._1,x._2+y._2)).map{case(x,(x1,y2)) => TweetSide(x,x1,y2)}
+     case class TweetSide(tweet: String, posCount: Int, negCount: Int, retweets : Int)
+     val totalCount = posCountMap.union(negCountMap).reduceByKey((x,y) => (x._1+y._1,x._2+y._2)).map{case(x,(x1,y2)) => TweetSide(x._1,x1,y2, x._2)}
      val posCount = totalCount.filter(x => x.posCount > x.negCount).count
      val negCount = totalCount.filter(x => x.posCount < x.negCount).count
      val neutralCount = totalCount.filter(x => x.posCount == x.negCount).count
@@ -54,6 +54,7 @@ object TweetAnalysis {
      sortedCount.foreach({case (k, v) => println("Word: " + k + " Count: " + v.toString())})
      println()
      
+     
      val filterMentionTweets = wordCount.map({case (k, v) => (v, k)}).filter({case (k, v) => v.contains("@")})
      val sortedMentionTweets = filterMentionTweets.sortByKey(false).take(25).map({case (k, v) => (v, k)})
      
@@ -69,11 +70,11 @@ object TweetAnalysis {
      println("Total Tweets: " + cleanText.count)  
      println("Positive: " + posCount + " Negative: " + negCount + " Neutral: " + neutralCount)
      println()
-     println("Top Positive Tweets")
-     mostPositive.foreach(x => println(x.tweet))
+     println("\nTop Positive Tweets")
+     mostPositive.foreach(x => println("--> " + x.tweet + "\n"))
      
-     println("Top Negative Tweets")
-     mostNegative.foreach(x => println(x.tweet))
+     println("\n\nTop Negative Tweets")
+     mostNegative.foreach(x => println("--> " + x.tweet + "\n"))
      println()
      
      //begin vocabulary 
@@ -107,6 +108,30 @@ object TweetAnalysis {
      "Words used with 8 characters: " + eightChar.first()._2 + "\n" +
      "Words used with 9 characters: " + nineChar.first()._2 + "\n" +
      "Words used with 10 or more characters: " + tenOrMoreChar.first()._2)
+     
+     // MOST POPULAR TWEETS
+     // Tweet(text: String, created: String, retweets: Int, favs: Int, isRetweet: String)
+     println("\n\n---------- MOST POPULAR TWEETS ----------")
+     println("--- Top 10 Most Favorited Tweets ---")
+     tweetData.sortBy(_.favs, false).take(10).foreach(tweet => println(tweet.favs + " favorites: " + tweet.text + "\n"))
+
+     //case class TweetSide(tweet: String, posCount: Int, negCount: Int)
+     println("--- Top 10 Most Retweets (Positive) ---")
+     totalCount.filter(tweet => tweet.negCount < tweet.posCount).sortBy(_.retweets,false).take(10).foreach(tweet => println(tweet.retweets + " retweets: " + tweet.tweet + "\n"))
+
+     println("--- Top 10 Most Retweets (Negative) ---")
+     totalCount.filter(tweet => tweet.negCount > tweet.posCount).sortBy(_.retweets,false).take(10).foreach(tweet => println(tweet.retweets + " retweets: " + tweet.tweet + "\n"))
+     
+     println("--- Top 10 Most Favorited and Retweeted Tweets ---")
+     tweetData.sortBy(tweet => tweet.retweets + tweet.favs, false).take(10).foreach(tweet => println(tweet.retweets + " retweets & " + tweet.favs + " favorites: " + tweet.text + "\n"))
+     
+     //MOST POPULAR TWEET TIMES
+     println("\n\n---------- MOST POPULAR TWEETS TIMES ----------")
+     tweetData.map(tweet => (tweet.created.split(" ")(3).split(":")(0), 1))
+     .reduceByKey{(x, y) => x + y}
+     .sortByKey().collect
+     .foreach(time => println("HOUR " + time._1 + ": " + time._2 + " tweets"))
+     
   }
   
   def getWordSubset(x: String) : Array[String] = {
