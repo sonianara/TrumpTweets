@@ -120,6 +120,13 @@ object TweetAnalysis {
      println("--- Top 10 Most Favorited and Retweeted Tweets ---")
      tweetData.sortBy(tweet => tweet.retweets + tweet.favs, false).take(10).foreach(tweet => println(tweet.retweets + " retweets & " + tweet.favs + " favorites: " + tweet.text + "\n"))
      
+     //MOST POPULAR TWEET TIMES
+     println("\n\n---------- MOST POPULAR TWEETS TIMES ----------")
+     tweetData.map(tweet => (tweet.created.split(" ")(3).split(":")(0), 1))
+     .reduceByKey{(x, y) => x + y}
+     .sortByKey().collect
+     .foreach(time => println("HOUR " + time._1 + ": " + time._2 + " tweets"))
+     
   }
   
   def getWordSubset(x: String) : Array[String] = {
