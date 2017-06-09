@@ -19,6 +19,7 @@ object TweetAnalysis {
      val negativeLines = sc.textFile("src/main/scala/negativeWordsPhrases.txt")
      val englishWords = sc.textFile("src/main/scala/englishWords.txt").map(x => (x.toLowerCase().trim,1)).collectAsMap()
      val trumpTweets = sc.textFile("src/main/scala/trumpTwitter2015-2017.csv")
+     val commonWords = sc.textFile("src/main/scala/commonWords.txt")
      
      case class Tweet(text: String, created: String, retweets: Int, favs: Int, isRetweet: String)
      val positiveWords = positiveLines.flatMap(line => (line.split(","))).map(x => (x.toLowerCase().trim,1)).collectAsMap()
@@ -28,7 +29,6 @@ object TweetAnalysis {
      val tweetData = tweetsText.filter(_(0) != header(0)).map(x => Tweet(x(2).trim, x(3).trim, x(4).trim.toInt, x(6).trim.toInt, x(7)))
      val cleanText = tweetData.map(x => ((x.text, x.retweets), x.text.replaceAll("[^a-zA-Z ]", "")))
      val flatMapTweets = cleanText.map(x => (x._1,getWordSubset(x._2))).flatMap{case(x,y) => y.map(str => (x,str))}
-     
      val posCountMap = flatMapTweets.filter{case(x,y) => positiveWords.contains(y.trim)}.map{case(x,y) => (x,(1,0))}
      val negCountMap = flatMapTweets.filter{case(x,y) => negativeWords.contains(y.trim)}.map{case(x,y) => (x,(0,1))}
      case class TweetSide(tweet: String, posCount: Int, negCount: Int, retweets : Int)
@@ -36,13 +36,19 @@ object TweetAnalysis {
      val posCount = totalCount.filter(x => x.posCount > x.negCount).count
      val negCount = totalCount.filter(x => x.posCount < x.negCount).count
      val neutralCount = totalCount.filter(x => x.posCount == x.negCount).count
+     
       
      println("Total Tweets: " + cleanText.count)  
      println("Positive: " + posCount + " Negative: " + negCount + " Neutral: " + neutralCount)
           
      //Get top 20 most frequently used words
-     val wordCount = cleanText.flatMap(l => l._1._1.split(" ")).map(word => (word, 1)).reduceByKey(_ + _)
-     val countWord = wordCount.map({case (k, v) => (v, k)}).filter({case (k, v) => v.size > 3})
+     val getText = tweetData.map(x => (x.text, x.text.replaceAll("[^a-zA-Z ]", "")))
+     val wordCount = getText.flatMap(l => l._1.split(" ")).map(word => (word, 1)).reduceByKey(_ + _)
+     val commonLines = commonWords.map(line => (line, 1))
+     val wordCountCommon = wordCount.cartesian(commonLines).filter({case (k, v) => k._1 == v._1})
+     val finalWordCount = wordCountCommon.map({case (k, v) => (k._1, k._2)})
+     
+     val countWord = wordCount.subtract(finalWordCount).map({case (k, v) => (v, k)})
      val sortedCount = countWord.sortByKey(false).take(25).map({case (k, v) => (v, k)})
      
      println("--------- TOP 25 MOST FREQUENTLY USED WORDS -----------")
@@ -72,37 +78,27 @@ object TweetAnalysis {
      mostNegative.foreach(x => println("--> " + x.tweet + "\n"))
      println()
      
-     //begin vocabulary 
+     //begin vocabulary
      println("\n\n---------- VOCABULARY ANALYSIS ----------")
+     println("Donald Trump[@realDonaldTrump]:")
      val justText = cleanText.map{case(x,y) => y}
-     val justWords = justText.flatMap(_.split(" ")).map(_.trim.toLowerCase).filter(_.length > 0).filter(x => englishWords.contains(x))
-     val wordCounts = justWords.map(x => (x,1)).reduceByKey((x,y) => (x + y))
-     val orderedWordCounts = wordCounts.sortBy{case(x,y) => x}
-//     orderedWordCounts.foreach{case(x,y) => println(y + "|" + x)}
+     vocabularyAnalysis(justText, englishWords)
      
-     println("Total unique words: " + orderedWordCounts.count)
+     println("\nBarack Obama[@BarackObama] (Former United States President):")
+     val obamaTweets = sc.textFile("src/main/scala/BarackObama_tweets.csv")
+     val justOTweets = obamaTweets.filter(x => x.split(",").length == 3).map(x => x.split(",")(2))
+     vocabularyAnalysis(justOTweets, englishWords)
      
-     val oneChar = orderedWordCounts.filter{case(x,y) => x.length == 1}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
-     val twoChar = orderedWordCounts.filter{case(x,y) => x.length == 2}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
-     val threeChar = orderedWordCounts.filter{case(x,y) => x.length == 3}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
-     val fourChar = orderedWordCounts.filter{case(x,y) => x.length == 4}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
-     val fiveChar = orderedWordCounts.filter{case(x,y) => x.length == 5}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
-     val sixChar = orderedWordCounts.filter{case(x,y) => x.length == 6}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
-     val sevenChar = orderedWordCounts.filter{case(x,y) => x.length == 7}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
-     val eightChar = orderedWordCounts.filter{case(x,y) => x.length == 8}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
-     val nineChar = orderedWordCounts.filter{case(x,y) => x.length == 9}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
-     val tenOrMoreChar = orderedWordCounts.filter{case(x,y) => x.length >= 10}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
+     println("\nCory Booker[@CoryBooker] (Current US Senator (New Jersey)):")
+     val bookerTweets = sc.textFile("src/main/scala/corybooker_tweets.csv")
+     val justBookerTweets = bookerTweets.filter(x => x.split(",").length == 3).map(x => x.split(",")(2))
+     vocabularyAnalysis(justBookerTweets, englishWords)
      
-     println("Words used with 1 character: " + oneChar.first._2 + "\n" +
-     "Words used with 2 characters: " + twoChar.first()._2 + "\n" +
-     "Words used with 3 characters: " + threeChar.first()._2 + "\n" +
-     "Words used with 4 characters: " + fourChar.first()._2 + "\n" +
-     "Words used with 5 characters: " + fiveChar.first()._2 + "\n" +
-     "Words used with 6 characters: " + sixChar.first()._2 + "\n" +
-     "Words used with 7 characters: " + sevenChar.first()._2 + "\n" +
-     "Words used with 8 characters: " + eightChar.first()._2 + "\n" +
-     "Words used with 9 characters: " + nineChar.first()._2 + "\n" +
-     "Words used with 10 or more characters: " + tenOrMoreChar.first()._2)
+     println("\nUnited Kingdom Prime Minister[@Number10gov]:")
+     val ukPMTweets = sc.textFile("src/main/scala/ukPrimeMinister_tweets.csv")
+     val justUkPMTweets = ukPMTweets.filter(x => x.split(",").length == 3).map(x => x.split(",")(2))
+     vocabularyAnalysis(justUkPMTweets, englishWords)
+     
      
      // MOST POPULAR TWEETS
      // Tweet(text: String, created: String, retweets: Int, favs: Int, isRetweet: String)
@@ -127,6 +123,38 @@ object TweetAnalysis {
      .sortBy(_._2, false).collect
      .foreach(time => println("HOUR " + time._1 + ": " + time._2 + " tweets"))
      
+  }
+  
+  def vocabularyAnalysis(cleanText: RDD[String], englishWords: Map[String, Int]) {
+     println("Total Tweets Analyzed: " + cleanText.count)
+    
+     val justWords = cleanText.flatMap(_.split(" ")).map(_.trim.toLowerCase).filter(_.length > 0).filter(x => englishWords.contains(x))
+     val wordCounts = justWords.map(x => (x,1)).reduceByKey((x,y) => (x + y))
+     val orderedWordCounts = wordCounts.sortBy{case(x,y) => x}
+     
+     println("Total unique words: " + orderedWordCounts.count)
+     
+     val oneChar = orderedWordCounts.filter{case(x,y) => x.length == 1}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
+     val twoChar = orderedWordCounts.filter{case(x,y) => x.length == 2}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
+     val threeChar = orderedWordCounts.filter{case(x,y) => x.length == 3}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
+     val fourChar = orderedWordCounts.filter{case(x,y) => x.length == 4}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
+     val fiveChar = orderedWordCounts.filter{case(x,y) => x.length == 5}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
+     val sixChar = orderedWordCounts.filter{case(x,y) => x.length == 6}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
+     val sevenChar = orderedWordCounts.filter{case(x,y) => x.length == 7}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
+     val eightChar = orderedWordCounts.filter{case(x,y) => x.length == 8}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
+     val nineChar = orderedWordCounts.filter{case(x,y) => x.length == 9}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
+     val tenOrMoreChar = orderedWordCounts.filter{case(x,y) => x.length >= 10}.map{case(x,y) => (x.length,y)}.reduceByKey((x,y) => (x + y))
+     
+     println("Words used with 1 character: " + oneChar.first._2 + " (" + (((oneChar.first._2.toDouble /justWords.count.toDouble) * 10000).toInt.toDouble / 100) + "%)")
+     println("Words used with 2 characters: " + twoChar.first()._2 + " (" + (((twoChar.first._2.toDouble /justWords.count.toDouble) * 10000).toInt.toDouble / 100) + "%)")
+     println("Words used with 3 characters: " + threeChar.first()._2 + " (" + (((threeChar.first._2.toDouble /justWords.count.toDouble) * 10000).toInt.toDouble / 100) + "%)")
+     println("Words used with 4 characters: " + fourChar.first()._2 + " (" + (((fourChar.first._2.toDouble /justWords.count.toDouble) * 10000).toInt.toDouble / 100) + "%)")
+     println("Words used with 5 characters: " + fiveChar.first()._2 + " (" + (((fiveChar.first._2.toDouble /justWords.count.toDouble) * 10000).toInt.toDouble / 100) + "%)")
+     println("Words used with 6 characters: " + sixChar.first()._2 + " (" + (((sixChar.first._2.toDouble /justWords.count.toDouble) * 10000).toInt.toDouble / 100) + "%)")
+     println("Words used with 7 characters: " + sevenChar.first()._2 + " (" + (((sevenChar.first._2.toDouble /justWords.count.toDouble) * 10000).toInt.toDouble / 100) + "%)")
+     println("Words used with 8 characters: " + eightChar.first()._2 + " (" + (((eightChar.first._2.toDouble /justWords.count.toDouble) * 10000).toInt.toDouble / 100) + "%)")
+     println("Words used with 9 characters: " + nineChar.first()._2 + " (" + (((nineChar.first._2.toDouble /justWords.count.toDouble) * 10000).toInt.toDouble / 100) + "%)")
+     println("Words used with 10 or more characters: " + tenOrMoreChar.first()._2 + " (" + (((tenOrMoreChar.first._2.toDouble /justWords.count.toDouble) * 10000).toInt.toDouble / 100) + "%)")
   }
   
   def getWordSubset(x: String) : Array[String] = {
