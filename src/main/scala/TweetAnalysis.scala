@@ -29,7 +29,6 @@ object TweetAnalysis {
      val tweetData = tweetsText.filter(_(0) != header(0)).map(x => Tweet(x(2).trim, x(3).trim, x(4).trim.toInt, x(6).trim.toInt, x(7)))
      val cleanText = tweetData.map(x => ((x.text, x.retweets), x.text.replaceAll("[^a-zA-Z ]", "")))
      val flatMapTweets = cleanText.map(x => (x._1,getWordSubset(x._2))).flatMap{case(x,y) => y.map(str => (x,str))}
-     
      val posCountMap = flatMapTweets.filter{case(x,y) => positiveWords.contains(y.trim)}.map{case(x,y) => (x,(1,0))}
      val negCountMap = flatMapTweets.filter{case(x,y) => negativeWords.contains(y.trim)}.map{case(x,y) => (x,(0,1))}
      case class TweetSide(tweet: String, posCount: Int, negCount: Int, retweets : Int)
@@ -37,12 +36,14 @@ object TweetAnalysis {
      val posCount = totalCount.filter(x => x.posCount > x.negCount).count
      val negCount = totalCount.filter(x => x.posCount < x.negCount).count
      val neutralCount = totalCount.filter(x => x.posCount == x.negCount).count
+     
       
      println("Total Tweets: " + cleanText.count)  
      println("Positive: " + posCount + " Negative: " + negCount + " Neutral: " + neutralCount)
           
      //Get top 20 most frequently used words
-     val wordCount = cleanText.flatMap(l => l._1.split(" ")).map(word => (word, 1)).reduceByKey(_ + _)
+     val getText = tweetData.map(x => (x.text, x.text.replaceAll("[^a-zA-Z ]", "")))
+     val wordCount = getText.flatMap(l => l._1.split(" ")).map(word => (word, 1)).reduceByKey(_ + _)
      val commonLines = commonWords.map(line => (line, 1))
      val wordCountCommon = wordCount.cartesian(commonLines).filter({case (k, v) => k._1 == v._1})
      val finalWordCount = wordCountCommon.map({case (k, v) => (k._1, k._2)})
