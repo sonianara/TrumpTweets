@@ -19,6 +19,7 @@ object TweetAnalysis {
      val negativeLines = sc.textFile("src/main/scala/negativeWordsPhrases.txt")
      val englishWords = sc.textFile("src/main/scala/englishWords.txt").map(x => (x.toLowerCase().trim,1)).collectAsMap()
      val trumpTweets = sc.textFile("src/main/scala/trumpTwitter2015-2017.csv")
+     val commonWords = sc.textFile("src/main/scala/commonWords.txt")
      
      case class Tweet(text: String, created: String, retweets: Int, favs: Int, isRetweet: String)
      val positiveWords = positiveLines.flatMap(line => (line.split(","))).map(x => (x.toLowerCase().trim,1)).collectAsMap()
@@ -42,13 +43,16 @@ object TweetAnalysis {
           
      //Get top 20 most frequently used words
      val wordCount = cleanText.flatMap(l => l._1.split(" ")).map(word => (word, 1)).reduceByKey(_ + _)
-     val countWord = wordCount.map({case (k, v) => (v, k)}).filter({case (k, v) => v.size > 3})
+     val commonLines = commonWords.map(line => (line, 1))
+     val wordCountCommon = wordCount.cartesian(commonLines).filter({case (k, v) => k._1 == v._1})
+     val finalWordCount = wordCountCommon.map({case (k, v) => (k._1, k._2)})
+     
+     val countWord = wordCount.subtract(finalWordCount).map({case (k, v) => (v, k)})
      val sortedCount = countWord.sortByKey(false).take(25).map({case (k, v) => (v, k)})
      
      println("--------- TOP 25 MOST FREQUENTLY USED WORDS -----------")
      sortedCount.foreach({case (k, v) => println("Word: " + k + " Count: " + v.toString())})
      println()
-     
      
      val filterMentionTweets = wordCount.map({case (k, v) => (v, k)}).filter({case (k, v) => v.contains("@")})
      val sortedMentionTweets = filterMentionTweets.sortByKey(false).take(25).map({case (k, v) => (v, k)})
